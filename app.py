@@ -281,5 +281,7 @@ def download_selected():
 def results():
     return render_template('results.html')
 
+# Run the Flask application
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))  # Use 5000 locally
+    app.run(host='0.0.0.0', port=port, debug=True)

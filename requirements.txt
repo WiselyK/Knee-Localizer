@@ -2,4 +2,4 @@ flask
 ultralytics
 opencv-python
 pydicom
-numpy
+numpy>=1.23,<2.0
