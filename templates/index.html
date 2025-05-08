@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knee Localizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            min-height: 200px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        .upload-icon {
+            font-size: 48px;
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+        .thumbnail {
+            max-width: 100%;
+            max-height: 150px;
+            object-fit: contain;
+            margin-bottom: 10px;
+        }
+        .thumbnail-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        .remove-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: rgba(255, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+        .file-info {
+            font-size: 0.85rem;
+            word-break: break-all;
+        }
+        .btn-primary {
+            background-color: #4285F4;
+            border-color: #4285F4;
+        }
+        .btn-primary:hover {
+            background-color: #3367d6;
+            border-color: #3367d6;
+        }
+        #progress-container {
+            display: none;
+            margin-top: 20px;
+        }
+        .app-title {
+            color: #4285F4;
+            font-weight: 700;
+        }
+        .app-description {
+            color: #5f6368;
+            max-width: 800px;
+            margin: 0 auto 30px auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <h1 class="text-center app-title mb-3">Knee Localizer</h1>
+        <p class="text-center app-description">Upload knee radiographs and automatically localize knee joints</p>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <div class="upload-area" id="drop-area">
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                            <p class="mb-2">Drag and drop your knee radiograph files here or click to browse</p>
+                            <p class="text-muted small">Supported file formats: DICOM (.dcm), JPEG (.jpg, .jpeg), PNG (.png)</p>
+                            <input type="file" id="fileInput" multiple accept=".dcm,.jpg,.jpeg,.png" class="d-none">
+                            <button class="btn btn-primary mt-2" id="browseBtn">Select Files</button>
+                        </div>
+                        
+                        <div id="progress-container">
+                            <div class="progress">
+                                <div id="upload-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <p class="text-center mt-2 small" id="progress-text">Uploading files...</p>
+                        </div>
+                        
+                        <div id="preview-container" class="mt-4">
+                            <h5 class="mb-3">Uploaded Files <span id="file-count" class="badge bg-secondary">0</span></h5>
+                            <div class="row" id="preview-area"></div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4" id="process-btn-container" style="display: none;">
+                            <button class="btn btn-success" id="processBtn">
+                                <i class="fas fa-search-location me-2"></i>Localize Knees
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3 text-center text-muted small">
+                    <p>For personal use only. Results should be verified by a qualified professional.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropArea = document.getElementById('drop-area');
+            const fileInput = document.getElementById('fileInput');
+            const browseBtn = document.getElementById('browseBtn');
+            const previewArea = document.getElementById('preview-area');
+            const fileCount = document.getElementById('file-count');
+            const processBtn = document.getElementById('processBtn');
+            const processBtnContainer = document.getElementById('process-btn-container');
+            const progressContainer = document.getElementById('progress-container');
+            const uploadProgress = document.getElementById('upload-progress');
+            const progressText = document.getElementById('progress-text');
+            
+            let uploadedFiles = [];
+            
+            // Handle file browse button
+            browseBtn.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            // Handle file selection
+            fileInput.addEventListener('change', function() {
+                handleFiles(this.files);
+            });
+            
+            // Prevent default drag behaviors
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            // Highlight drop area when dragging over it
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+            
+            // Handle dropped files
+            dropArea.addEventListener('drop', function(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+            });
+            
+            // Process button click
+            processBtn.addEventListener('click', function() {
+                processFiles();
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            function highlight() {
+                dropArea.classList.add('dragover');
+            }
+            
+            function unhighlight() {
+                dropArea.classList.remove('dragover');
+            }
+            
+            function handleFiles(files) {
+                if (files.length === 0) return;
+                
+                progressContainer.style.display = 'block';
+                uploadProgress.style.width = '0%';
+                progressText.textContent = 'Uploading files...';
+                
+                const formData = new FormData();
+                
+                for (let i = 0; i < files.length; i++) {
+                    // Check if the file type is allowed
+                    const fileExt = files[i].name.split('.').pop().toLowerCase();
+                    if (['dcm', 'jpg', 'jpeg', 'png'].includes(fileExt)) {
+                        formData.append('files[]', files[i]);
+                    }
+                }
+                
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/upload', true);
+                
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        uploadProgress.style.width = percentComplete + '%';
+                    }
+                });
+                
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        uploadedFiles = uploadedFiles.concat(response.files);
+                        updatePreview();
+                        progressContainer.style.display = 'none';
+                    }
+                };
+                
+                xhr.send(formData);
+            }
+            
+            function updatePreview() {
+                previewArea.innerHTML = '';
+                
+                uploadedFiles.forEach((file, index) => {
+                    const col = document.createElement('div');
+                    col.className = 'col-md-4 col-sm-6 mb-3';
+                    
+                    const thumbnailContainer = document.createElement('div');
+                    thumbnailContainer.className = 'thumbnail-container';
+                    
+                    const thumbnail = document.createElement('img');
+                    thumbnail.src = `/static/${file.path}`;
+                    thumbnail.className = 'thumbnail img-fluid';
+                    thumbnail.alt = file.original;
+                    
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'remove-btn';
+                    removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+                    removeBtn.onclick = function() {
+                        uploadedFiles.splice(index, 1);
+                        updatePreview();
+                    };
+                    
+                    thumbnailContainer.appendChild(thumbnail);
+                    thumbnailContainer.appendChild(removeBtn);
+                    
+                    const fileInfo = document.createElement('div');
+                    fileInfo.className = 'file-info';
+                    fileInfo.textContent = file.original;
+                    
+                    col.appendChild(thumbnailContainer);
+                    col.appendChild(fileInfo);
+                    previewArea.appendChild(col);
+                });
+                
+                fileCount.textContent = uploadedFiles.length;
+                
+                if (uploadedFiles.length > 0) {
+                    processBtnContainer.style.display = 'block';
+                } else {
+                    processBtnContainer.style.display = 'none';
+                }
+            }
+            
+            function processFiles() {
+                if (uploadedFiles.length === 0) return;
+                
+                // Show processing status
+                progressContainer.style.display = 'block';
+                uploadProgress.style.width = '0%';
+                progressText.textContent = 'Processing images...';
+                
+                // Disable process button
+                processBtn.disabled = true;
+                processBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...';
+                
+                fetch('/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ files: uploadedFiles })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Store processed data in session storage
+                    sessionStorage.setItem('processedData', JSON.stringify(data));
+                    
+                    // Redirect to results page
+                    window.location.href = '/results';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while processing the images.');
+                    
+                    // Reset UI
+                    progressContainer.style.display = 'none';
+                    processBtn.disabled = false;
+                    processBtn.innerHTML = '<i class="fas fa-search-location me-2"></i>Localize Knees';
+                });
+            }
+        });
+    </script>
+</body>
+</html>

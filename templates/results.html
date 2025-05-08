@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Localized Knee Joints - Results</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .result-image {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .crop-image {
+            width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .crop-card {
+            margin-bottom: 20px;
+            transition: all 0.2s;
+        }
+        .crop-card.selected {
+            border-color: #4285F4;
+            box-shadow: 0 0 0 2px #4285F4;
+        }
+        .crop-image-container {
+            position: relative;
+            margin-bottom: 10px;
+        }
+        .crop-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(66, 133, 244, 0.85);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .side-label {
+            margin-right: 0.5rem;
+            color: #5f6368;
+        }
+        .btn-outline-primary {
+            color: #4285F4;
+            border-color: #4285F4;
+        }
+        .btn-outline-primary:hover {
+            background-color: #4285F4;
+            border-color: #4285F4;
+        }
+        .btn-primary {
+            background-color: #4285F4;
+            border-color: #4285F4;
+        }
+        .btn-primary:hover {
+            background-color: #3367d6;
+            border-color: #3367d6;
+        }
+        .fixed-bottom-container {
+            position: sticky;
+            bottom: 0;
+            background-color: #fff;
+            border-top: 1px solid #ddd;
+            padding: 15px 0;
+            margin-top: 20px;
+        }
+        .app-title {
+            color: #4285F4;
+            font-weight: 700;
+        }
+        .original-filename {
+            color: #5f6368;
+            font-size: 0.85rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #no-data-alert {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="app-title mb-0">Localized Knee Joints</h1>
+            <a href="/" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Upload
+            </a>
+        </div>
+        
+        <div class="alert alert-warning" id="no-data-alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            No processed data found. Please upload and process images first.
+            <div class="mt-2">
+                <a href="/" class="btn btn-primary btn-sm">Go to Upload Page</a>
+            </div>
+        </div>
+        
+        <div class="mb-4" id="results-container">
+            <div class="row">
+                <div class="col-lg-4">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Original Images with Detections</h5>
+                        </div>
+                        <div class="card-body p-3" id="original-images-container">
+                            <!-- Original images with detections will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Cropped Knee Images</h5>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="select-all-checkbox">
+                                <label class="form-check-label" for="select-all-checkbox">Select All</label>
+                            </div>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="row" id="crops-container">
+                                <!-- Cropped images will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="fixed-bottom-container shadow-lg">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="formatOptions" id="formatJpg" value="jpg" checked>
+                            <label class="form-check-label" for="formatJpg">
+                                JPG
+                            </label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="formatOptions" id="formatPng" value="png">
+                            <label class="form-check-label" for="formatPng">
+                                PNG
+                            </label>
+                        </div>
+                        <span class="text-muted ms-3" id="selected-count">0 images selected</span>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-end">
+                            <button class="btn btn-primary" id="download-btn" disabled>
+                                <i class="fas fa-download me-2"></i>Download Selected
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for renaming files -->
+    <div class="modal fade" id="renameModal" tabindex="-1" aria-labelledby="renameModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="renameModalLabel">Rename File</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="renameInput" class="form-label">New filename:</label>
+                        <input type="text" class="form-control" id="renameInput">
+                        <small class="text-muted">Extension will be added automatically based on selected format</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="save-rename-btn">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const originalImagesContainer = document.getElementById('original-images-container');
+            const cropsContainer = document.getElementById('crops-container');
+            const selectAllCheckbox = document.getElementById('select-all-checkbox');
+            const downloadBtn = document.getElementById('download-btn');
+            const selectedCountEl = document.getElementById('selected-count');
+            const noDataAlert = document.getElementById('no-data-alert');
+            const resultsContainer = document.getElementById('results-container');
+            const renameModal = new bootstrap.Modal(document.getElementById('renameModal'));
+            const renameInput = document.getElementById('renameInput');
+            const saveRenameBtn = document.getElementById('save-rename-btn');
+            
+            let processedData = null;
+            let selectedCrops = [];
+            let renamedFiles = {};
+            let currentRenameTarget = null;
+            
+            // Load processed data from session storage
+            const processedDataStr = sessionStorage.getItem('processedData');
+            
+            if (!processedDataStr) {
+                noDataAlert.style.display = 'block';
+                resultsContainer.style.display = 'none';
+                return;
+            }
+            
+            try {
+                processedData = JSON.parse(processedDataStr);
+                renderResults(processedData);
+            } catch (error) {
+                console.error('Error parsing processed data:', error);
+                noDataAlert.style.display = 'block';
+                resultsContainer.style.display = 'none';
+            }
+            
+            // Handle select all checkbox
+            selectAllCheckbox.addEventListener('change', function() {
+                const cropCards = document.querySelectorAll('.crop-card');
+                cropCards.forEach(card => {
+                    const checkbox = card.querySelector('.crop-checkbox');
+                    checkbox.checked = selectAllCheckbox.checked;
+                    card.classList.toggle('selected', selectAllCheckbox.checked);
+                    
+                    const cropPath = card.dataset.path;
+                    const cardIndex = selectedCrops.indexOf(cropPath);
+                    
+                    if (selectAllCheckbox.checked && cardIndex === -1) {
+                        selectedCrops.push(cropPath);
+                    } else if (!selectAllCheckbox.checked && cardIndex !== -1) {
+                        selectedCrops.splice(cardIndex, 1);
+                    }
+                });
+                
+                updateSelectedCount();
+                updateDownloadButton();
+            });
+            
+            // Handle download button
+            downloadBtn.addEventListener('click', function() {
+                if (selectedCrops.length === 0) return;
+                
+                const formatType = document.querySelector('input[name="formatOptions"]:checked').value;
+                
+                fetch('/download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        selectedCrops: selectedCrops,
+                        format: formatType,
+                        renamedFiles: renamedFiles
+                    })
+                })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'knee_crops.zip';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while downloading the files.');
+                });
+            });
+            
+            // Save rename button
+            saveRenameBtn.addEventListener('click', function() {
+                if (!currentRenameTarget) return;
+                
+                const newName = renameInput.value.trim();
+                if (newName) {
+                    // Update rename map
+                    renamedFiles[currentRenameTarget] = newName;
+                    
+                    // Update UI
+                    const filenameEl = document.querySelector(`[data-path="${currentRenameTarget}"] .crop-filename`);
+                    if (filenameEl) {
+                        filenameEl.textContent = newName;
+                    }
+                }
+                
+                renameModal.hide();
+            });
+            
+            function renderResults(data) {
+                if (!data || !data.processed || data.processed.length === 0) {
+                    noDataAlert.style.display = 'block';
+                    resultsContainer.style.display = 'none';
+                    return;
+                }
+                
+                // Clear containers
+                originalImagesContainer.innerHTML = '';
+                cropsContainer.innerHTML = '';
+                
+                // Render each processed file
+                data.processed.forEach(file => {
+                    // Add original image with detections
+                    const originalImageDiv = document.createElement('div');
+                    originalImageDiv.className = 'mb-3';
+                    originalImageDiv.innerHTML = `
+                        <img src="/static/${file.annotated_path}" class="result-image img-fluid" alt="Annotated ${file.original}">
+                        <div class="original-filename" title="${file.original}">${file.original}</div>
+                    `;
+                    originalImagesContainer.appendChild(originalImageDiv);
+                    
+                    // Add crops
+                    file.crops.forEach(crop => {
+                        const cropCol = document.createElement('div');
+                        cropCol.className = 'col-md-6 col-lg-4';
+                        
+                        const cropCard = document.createElement('div');
+                        cropCard.className = 'card crop-card';
+                        cropCard.dataset.path = crop.path;
+                        
+                        cropCard.innerHTML = `
+                            <div class="crop-image-container">
+                                <img src="/static/${crop.path}" class="crop-image" alt="${crop.filename}">
+                                <div class="crop-badge">${crop.side}</div>
+                            </div>
+                            <div class="card-body p-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="form-check">
+                                        <input class="form-check-input crop-checkbox" type="checkbox" value="${crop.path}" id="check-${crop.filename}">
+                                        <label class="form-check-label" for="check-${crop.filename}">
+                                            <span class="crop-filename">${crop.filename}</span>
+                                        </label>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary rename-btn" data-path="${crop.path}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        
+                        cropCol.appendChild(cropCard);
+                        cropsContainer.appendChild(cropCol);
+                        
+                        // Add event listeners for crop selection
+                        const checkbox = cropCard.querySelector('.crop-checkbox');
+                        checkbox.addEventListener('change', function() {
+                            cropCard.classList.toggle('selected', this.checked);
+                            
+                            const cropPath = crop.path;
+                            const index = selectedCrops.indexOf(cropPath);
+                            
+                            if (this.checked && index === -1) {
+                                selectedCrops.push(cropPath);
+                            } else if (!this.checked && index !== -1) {
+                                selectedCrops.splice(index, 1);
+                            }
+                            
+                            updateSelectedCount();
+                            updateDownloadButton();
+                        });
+                        
+                        // Add event listener for rename button
+                        const renameBtn = cropCard.querySelector('.rename-btn');
+                        renameBtn.addEventListener('click', function() {
+                            currentRenameTarget = this.dataset.path;
+                            const currentName = renamedFiles[currentRenameTarget] || 
+                                            crop.filename.substring(0, crop.filename.lastIndexOf('.'));
+                            renameInput.value = currentName;
+                            renameModal.show();
+                        });
+                    });
+                });
+            }
+            
+            function updateSelectedCount() {
+                selectedCountEl.textContent = `${selectedCrops.length} image${selectedCrops.length !== 1 ? 's' : ''} selected`;
+            }
+            
+            function updateDownloadButton() {
+                downloadBtn.disabled = selectedCrops.length === 0;
+            }
+        });
+    </script>
+</body>
+</html>
